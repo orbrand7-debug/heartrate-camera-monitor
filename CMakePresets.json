@@ -1,0 +1,50 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default Config with vcpkg",
+      "description": "Default build using MSVC compiler with vcpkg integration",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg_installed/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      },
+      "binaryDir": "${sourceDir}/build",
+      "hidden": false
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug Config with vcpkg",
+      "description": "Debug build using MSVC compiler with vcpkg integration",
+      "generator": "Ninja Multi-Config",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "cl.exe",
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg_installed/vcpkg/scripts/buildsystems/vcpkg.cmake"
+      },
+      "binaryDir": "${sourceDir}/build",
+      "hidden": false
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "configuration": "Release"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "configuration": "Release"
+    }
+  ]
+}

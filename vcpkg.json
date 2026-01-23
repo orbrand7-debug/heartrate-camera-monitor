@@ -1,0 +1,10 @@
+{
+  "name": "heartrate-monitor",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "opencv4",
+    "dlib",
+    "yaml-cpp"
+  ],
+  "builtin-baseline": "de51e6bfa96e1245f2a969a8cde249baac89f7be"
+}
