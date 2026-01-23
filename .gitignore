@@ -50,3 +50,9 @@ install_manifest.txt
 # Dlib data files
 *.dat
 *.bin
+
+build/
+dlib_models/
+.vscode/
+*.log
+vcpkg_installed/
