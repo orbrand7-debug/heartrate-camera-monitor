@@ -67,3 +67,29 @@ if(MSVC)
 else()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -O3)
 endif()
+
+# --- 5. Post-Build: Copy DLLs and config.yml ---
+# Determine the output directory based on generator type
+if(MSVC)
+    # Multi-config generator: use $<CONFIG> for per-config folders
+    set(OUTPUT_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+    set(CONFIG_DIR "${OUTPUT_DIR}/..")  # One level up to match structure
+else()
+    set(OUTPUT_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+endif()
+
+# Copy DLLs from vcpkg bin directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_debug/x64-windows/bin"
+        "${OUTPUT_DIR}"
+    COMMENT "Copying vcpkg DLLs to output directory"
+)
+
+# Copy config.yml to output directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_CURRENT_SOURCE_DIR}/config.yaml"
+        "${OUTPUT_DIR}/config.yaml"
+    COMMENT "Copying config.yaml to output directory"
+)

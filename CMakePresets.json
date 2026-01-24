@@ -10,7 +10,8 @@
         "CMAKE_PREFIX_PATH": "${sourceDir}/vcpkg_installed_debug/x64-windows",
         "BLA_VENDOR": "OpenBLAS",
         "LAPACK_LIBRARIES": "${sourceDir}/vcpkg_installed_debug/x64-windows/lib/openblas.lib",
-        "LAPACK_FOUND": "TRUE"
+        "LAPACK_FOUND": "TRUE",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL"
       },
       "binaryDir": "${sourceDir}/build/Release",
       "hidden": false
@@ -24,7 +25,8 @@
         "CMAKE_PREFIX_PATH": "${sourceDir}/vcpkg_installed_debug/x64-windows",
         "BLA_VENDOR": "OpenBLAS",
         "LAPACK_LIBRARIES": "${sourceDir}/vcpkg_installed_debug/x64-windows/lib/openblas.lib",
-        "LAPACK_FOUND": "TRUE"
+        "LAPACK_FOUND": "TRUE",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDebugDLL"
       },
       "binaryDir": "${sourceDir}/build/Debug",
       "hidden": false
