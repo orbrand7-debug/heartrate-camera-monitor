@@ -3,28 +3,30 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default Config with vcpkg",
-      "description": "Default build using MSVC compiler with vcpkg integration",
-      "generator": "Ninja Multi-Config",
+      "displayName": "Release Config",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg_installed/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_PREFIX_PATH": "${sourceDir}/vcpkg_installed_debug/x64-windows",
+        "BLA_VENDOR": "OpenBLAS",
+        "LAPACK_LIBRARIES": "${sourceDir}/vcpkg_installed_debug/x64-windows/lib/openblas.lib",
+        "LAPACK_FOUND": "TRUE"
       },
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build/Release",
       "hidden": false
     },
     {
       "name": "debug",
-      "displayName": "Debug Config with vcpkg",
-      "description": "Debug build using MSVC compiler with vcpkg integration",
-      "generator": "Ninja Multi-Config",
+      "displayName": "Debug Config",
+      "generator": "Visual Studio 18 2026",
+      "architecture": "x64",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg_installed/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_PREFIX_PATH": "${sourceDir}/vcpkg_installed_debug/x64-windows",
+        "BLA_VENDOR": "OpenBLAS",
+        "LAPACK_LIBRARIES": "${sourceDir}/vcpkg_installed_debug/x64-windows/lib/openblas.lib",
+        "LAPACK_FOUND": "TRUE"
       },
-      "binaryDir": "${sourceDir}/build",
+      "binaryDir": "${sourceDir}/build/Debug",
       "hidden": false
     }
   ],

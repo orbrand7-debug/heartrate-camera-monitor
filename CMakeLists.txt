@@ -16,6 +16,10 @@ message(STATUS "Found OpenCV: ${OpenCV_VERSION}")
 find_package(yaml-cpp REQUIRED)
 message(STATUS "Found yaml-cpp")
 
+# --- 2.6. SPDLOG: Find via vcpkg ---
+find_package(spdlog REQUIRED)
+message(STATUS "Found spdlog")
+
 # --- 3. Model Download & Extraction (Universal) ---
 set(MODEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dlib_models")
 set(MODEL_FILE "${MODEL_DIR}/shape_predictor_68_face_landmarks_GTX.dat")
@@ -51,6 +55,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${OpenCV_LIBS} 
     dlib::dlib
     yaml-cpp::yaml-cpp
+    spdlog::spdlog
     gdi32 user32 # For Win32 HUD
 )
 file(TO_NATIVE_PATH "${MODEL_FILE}" NATIVE_PATH)

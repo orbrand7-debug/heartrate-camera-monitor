@@ -4,7 +4,8 @@
   "dependencies": [
     "opencv4",
     "dlib",
-    "yaml-cpp"
+    "yaml-cpp",
+    "spdlog"
   ],
   "builtin-baseline": "de51e6bfa96e1245f2a969a8cde249baac89f7be"
 }

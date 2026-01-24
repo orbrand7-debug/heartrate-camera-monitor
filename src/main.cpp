@@ -17,24 +17,18 @@ int main() {
     try {
         cv::VideoCapture cap(0);
         if (!cap.isOpened()) {
+            std::println(stderr, "Error: Could not open camera.");
             return -1;
         }
 
         FaceProcessor processor(MODEL_PATH);
-
         HeartbeatAnalyzer analyzer(config.analysis.window_size, config.camera.fps);
+        Overlay hud(config); // Pass config to HUD
 
-        Overlay hud(config);
-
-        std::jthread hud_thread([&hud]() { 
-            hud.run();
-        });
+        std::jthread hud_thread([&hud]() { hud.run(); });
 
         cv::Mat frame;
-        int frame_count = 0;
         while (cap.read(frame)) {
-            frame_count++;
-
             bool debug_mode = hud.is_debug_mode();
             
             // Apply frame ROI if defined
