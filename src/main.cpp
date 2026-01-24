@@ -39,16 +39,20 @@ int main() {
 
             auto face_res = processor.get_central_face(processing_frame);
             if (face_res) {
-                cv::Rect forehead = processor.get_forehead_roi(*face_res);
-                double hue = processor.get_avg_hue(processing_frame, forehead);
-                analyzer.add_sample(hue);
+                cv::Mat forehead;
+                if (debug_mode) {
+                    cv::Mat forehead_rect;
+                    forehead = processor.get_stabilized_forehead(processing_frame, *face_res, &forehead_rect);
+                    processor.draw_debug(processing_frame, *face_res, forehead_rect);
+                }
+                else {
+                    forehead = processor.get_stabilized_forehead(processing_frame, *face_res);
+                }
+                analyzer.add_sample(processor.get_avg_bgr(forehead));
                 auto bpm = analyzer.calculate_bpm(config.analysis.min_bpm, config.analysis.max_bpm);
                 if (bpm) {
                     hud.update_bpm(*bpm);
                 }
-                if (debug_mode) {
-                    processor.draw_debug(processing_frame, *face_res, forehead);
-                } 
             }
             hud.update_frame(processing_frame);
             if (cv::waitKey(1) == 27) {

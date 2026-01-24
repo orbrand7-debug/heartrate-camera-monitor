@@ -23,7 +23,7 @@ public:
     /**
     * @brief Draws face bounding box, landmarks, and forehead ROI onto the frame.
     */
-    void draw_debug(cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Rect forehead) const;
+    void draw_debug(cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Mat forehead_rect) const;
 
     /**
      * @brief Finds the face closest to the center of the image.
@@ -34,18 +34,18 @@ public:
 
     /**
      * @brief Calculates a rectangular ROI on the forehead based on eyebrow landmarks.
-     * @param landmarks The 68-point landmark detection result.
-     * @return cv::Rect The bounding box for the forehead.
+     * @param frame The input BGR image.
+     * @param landmarks The facial landmarks detected.
+     * @param out_corners Optional output for the transformed corners.
+     * @return cv::Mat The stabilized forehead region.
      */
-    cv::Rect get_forehead_roi(const dlib::full_object_detection& landmarks) const;
+    cv::Mat get_stabilized_forehead(const cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Mat* out_corners = nullptr) const;
 
     /**
-     * @brief Calculates the average hue value within an ROI.
-     * @param frame Input BGR frame.
-     * @param roi The region to analyze.
-     * @return Average hue value (0-180 in OpenCV).
+     * @brief Computes the mean BGR values within an ROI.
+     * @return cv::Scalar containing B, G, R averages.
      */
-    double get_avg_hue(const cv::Mat& frame, cv::Rect roi) const;
+    cv::Scalar get_avg_bgr(const cv::Mat& frame) const;
 
 private:
     dlib::frontal_face_detector m_detector;

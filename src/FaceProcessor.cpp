@@ -11,7 +11,7 @@ FaceProcessor::FaceProcessor(const std::string& model_path) {
 }
 
 
-void FaceProcessor::draw_debug(cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Rect forehead) const {
+void FaceProcessor::draw_debug(cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Mat forehead_rect) const {
     // 1. Draw Landmarks
     for (unsigned long i = 0; i < landmarks.num_parts(); ++i) {
         cv::circle(frame, cv::Point(landmarks.part(i).x(), landmarks.part(i).y()), 2, cv::Scalar(0, 255, 255), -1);
@@ -21,7 +21,7 @@ void FaceProcessor::draw_debug(cv::Mat& frame, const dlib::full_object_detection
                        landmarks.get_rect().width(), landmarks.get_rect().height());
     cv::rectangle(frame, face_rect, cv::Scalar(255, 0, 0), 2);
     // 3. Draw Forehead
-    cv::rectangle(frame, forehead, cv::Scalar(0, 255, 0), 2);
+    cv::polylines(frame, forehead_rect, true, cv::Scalar(0, 255, 0), 2);
 }
 
 std::expected<dlib::full_object_detection, std::string> FaceProcessor::get_central_face(const cv::Mat& frame) {
@@ -41,34 +41,72 @@ std::expected<dlib::full_object_detection, std::string> FaceProcessor::get_centr
     return m_shape_predictor(dlib_img, *closest_face);
 }
 
-cv::Rect FaceProcessor::get_forehead_roi(const dlib::full_object_detection& landmarks) const {
-    // Indices 17-21: Left eyebrow, 22-26: Right eyebrow
-    long eyebrow_y = 0;
-    for (int i = 17; i <= 26; ++i) eyebrow_y += landmarks.part(i).y();
-    eyebrow_y /= 10;
+cv::Mat FaceProcessor::get_stabilized_forehead(const cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Mat* out_corners) const
+{
+    // 1. Define Standard Space Landmarks (3x1 CV_32FC2)
+    cv::Mat dstTri = (cv::Mat_<cv::Vec2f>(3, 1) << 
+        cv::Vec2f(60.0f, 100.0f),  // Left Eyebrow Peak
+        cv::Vec2f(140.0f, 100.0f), // Right Eyebrow Peak
+        cv::Vec2f(100.0f, 130.0f)  // Nose Bridge
+    );
 
-    // Horizontal scale: distance between outer eye corners (36 and 45)
-    long eye_dist = landmarks.part(45).x() - landmarks.part(36).x();
-    
-    int roi_width = static_cast<int>(eye_dist * 0.5);
-    int roi_height = static_cast<int>(eye_dist * 0.2);
-    
-    // Position: Center on point 27 (top of nose), shift up
-    int x = landmarks.part(27).x() - (roi_width / 2);
-    int y = static_cast<int>(eyebrow_y - roi_height - 10);
+    // Using Rect2f (float) ensures tl() and br() return Point2f
+    const cv::Rect2f std_forehead_rect(70.0f, 40.0f, 60.0f, 45.0f);
 
-    return {x, y, roi_width, roi_height};
-}
+    // 2. Extract Source Landmarks (Dlib points directly to cv::Vec2f)
+    cv::Mat srcTri = (cv::Mat_<cv::Vec2f>(3, 1) << 
+        cv::Vec2f(cv::Point2f(landmarks.part(19).x(), landmarks.part(19).y())),
+        cv::Vec2f(cv::Point2f(landmarks.part(24).x(), landmarks.part(24).y())),
+        cv::Vec2f(cv::Point2f(landmarks.part(27).x(), landmarks.part(27).y()))
+    );
 
-double FaceProcessor::get_avg_hue(const cv::Mat& frame, cv::Rect roi) const {
-    // Keep ROI inside frame boundaries
-    roi &= cv::Rect(0, 0, frame.cols, frame.rows);
-    if (roi.area() <= 0) {
-        return 0.0;
+    // 3. Coordinate Transformation
+    cv::Mat M = cv::getAffineTransform(srcTri, dstTri);
+    cv::Mat M_inv;
+    cv::invertAffineTransform(M, M_inv);
+
+    // 4. Vectorized Corner Calculation
+    // No casting needed: tl() and br() on Rect2f return Point2f
+    cv::Mat std_corners = (cv::Mat_<cv::Vec2f>(4, 1) << 
+        cv::Vec2f(std_forehead_rect.tl()),
+        cv::Vec2f(std_forehead_rect.x + std_forehead_rect.width, std_forehead_rect.y),
+        cv::Vec2f(std_forehead_rect.br()),
+        cv::Vec2f(std_forehead_rect.x, std_forehead_rect.y + std_forehead_rect.height)
+    );
+
+    cv::Mat frame_corners;
+    cv::transform(std_corners, frame_corners, M_inv);
+
+    // out_corners is used for drawing, so we eventually need integers
+    if (out_corners) {
+        frame_corners.convertTo(*out_corners, CV_32S);
     }
 
-    cv::Mat hsv_roi;
-    cv::cvtColor(frame(roi), hsv_roi, cv::COLOR_BGR2HSV);
-    double hue = cv::mean(hsv_roi)[0];
-    return hue;
+    // 5. Create Micro-Warp Source Crop
+    // boundingRect returns a standard Rect (int), which we need for Mat indexing
+    cv::Rect frame_roi = cv::boundingRect(frame_corners);
+    frame_roi &= cv::Rect(0, 0, frame.cols, frame.rows);
+
+    if (frame_roi.width < 2 || frame_roi.height < 2) return cv::Mat();
+
+    // 6. Vectorized Point Adjustment
+    // frame_roi.tl() returns Point2i, which converts implicitly to Point2f for the Scalar
+    cv::Point2f src_offset = frame_roi.tl();
+    cv::Point2f dst_offset = std_forehead_rect.tl();
+
+    cv::Mat adjSrcTri = srcTri - cv::Scalar(src_offset.x, src_offset.y);
+    cv::Mat adjDstTri = dstTri - cv::Scalar(dst_offset.x, dst_offset.y);
+
+    // 7. Execution
+    cv::Mat final_M = cv::getAffineTransform(adjSrcTri, adjDstTri);
+    cv::Mat result;
+    
+    // cv::Size takes integers, so we use the size of the standard rect
+    cv::warpAffine(frame(frame_roi), result, final_M, std_forehead_rect.size());
+
+    return result;
+}
+
+cv::Scalar FaceProcessor::get_avg_bgr(const cv::Mat& frame) const {
+    return cv::mean(frame);
 }

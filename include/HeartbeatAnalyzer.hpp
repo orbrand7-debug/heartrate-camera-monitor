@@ -1,42 +1,35 @@
-#ifndef HEARTBEAT_ANALYZER_HPP
-#define HEARTBEAT_ANALYZER_HPP
-
-#include <vector>
+#pragma once
 #include <deque>
-#include <string>
+#include <vector>
 #include <expected>
+#include <string>
+#include <opencv2/core.hpp>
 
 /**
  * @class HeartbeatAnalyzer
- * @brief Handles the temporal signal processing of hue values to extract heart rate.
+ * @brief Implements the POS (Plane-Orthogonal-to-Skin) algorithm for rPPG.
  */
 class HeartbeatAnalyzer {
 public:
     /**
-     * @brief Constructor for the analyzer.
-     * @param window_size Number of samples to collect before performing FFT.
-     * @param fps The frames per second of the source video.
+     * @param window_size Number of frames to analyze (e.g., 256).
+     * @param fps Camera frame rate.
      */
-    explicit HeartbeatAnalyzer(size_t window_size = 256, double fps = 30.0);
+    HeartbeatAnalyzer(int window_size, double fps);
 
     /**
-     * @brief Adds a new hue measurement to the sliding window.
-     * @param hue The average hue value calculated from the forehead ROI.
+     * @brief Adds BGR averages from the ROI to the temporal buffer.
      */
-    void add_sample(double hue);
+    void add_sample(const cv::Scalar& bgr);
 
     /**
-     * @brief Analyzes the stored signal using a Discrete Fourier Transform.
-     * @param min_b Minimum BPM to consider in the analysis.
-     * @param max_b Maximum BPM to consider in the analysis.
-     * @return std::expected containing the BPM on success, or an error string.
+     * @brief Processes the BGR buffer using the POS algorithm and FFT.
+     * @return std::expected containing the BPM or an error message.
      */
-    [[nodiscard]] std::expected<double, std::string> calculate_bpm(double min_b, double max_b) const;
+    std::expected<double, std::string> calculate_bpm(double min_b, double max_b);
 
 private:
-    std::deque<double> m_hue_buffer;
-    size_t m_window_size;
+    std::deque<cv::Scalar> m_buffer;
+    size_t m_ws;
     double m_fps;
 };
-
-#endif
