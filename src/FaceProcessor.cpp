@@ -1,6 +1,7 @@
 #include "FaceProcessor.hpp"
 #include <dlib/opencv.h>
 #include <filesystem>
+#include <chrono>
 
 FaceProcessor::FaceProcessor(const std::string& model_path) {
     m_detector = dlib::get_frontal_face_detector();
@@ -24,21 +25,42 @@ void FaceProcessor::draw_debug(cv::Mat& frame, const dlib::full_object_detection
     cv::polylines(frame, forehead_rect, true, cv::Scalar(0, 255, 0), 2);
 }
 
-std::expected<dlib::full_object_detection, std::string> FaceProcessor::get_central_face(const cv::Mat& frame) {
+std::expected<dlib::full_object_detection, std::string> FaceProcessor::get_central_face(
+    const cv::Mat& frame, FaceTimings* timings) {
+    auto to_ms = [](auto d) {
+        return std::chrono::duration<double, std::milli>(d).count();
+    };
+
+    auto t0 = std::chrono::steady_clock::now();
     dlib::cv_image<dlib::bgr_pixel> dlib_img(frame);
     auto faces = m_detector(dlib_img);
+    auto t1 = std::chrono::steady_clock::now();
+    if (timings) {
+        timings->detect_ms = to_ms(t1 - t0);
+    }
 
     if (faces.empty()) {
         return std::unexpected("No faces in view");
     }
 
+    auto t2 = std::chrono::steady_clock::now();
     dlib::point frame_center(frame.cols / 2, frame.rows / 2);
     
     auto closest_face = std::min_element(faces.begin(), faces.end(), [&](const auto& a, const auto& b) {
         return dlib::length(center(a) - frame_center) < dlib::length(center(b) - frame_center);
     });
+    auto t3 = std::chrono::steady_clock::now();
+    if (timings) {
+        timings->select_ms = to_ms(t3 - t2);
+    }
 
-    return m_shape_predictor(dlib_img, *closest_face);
+    auto t4 = std::chrono::steady_clock::now();
+    auto landmarks = m_shape_predictor(dlib_img, *closest_face);
+    auto t5 = std::chrono::steady_clock::now();
+    if (timings) {
+        timings->predict_ms = to_ms(t5 - t4);
+    }
+    return landmarks;
 }
 
 cv::Mat FaceProcessor::get_stabilized_forehead(const cv::Mat& frame, const dlib::full_object_detection& landmarks, cv::Mat* out_corners) const

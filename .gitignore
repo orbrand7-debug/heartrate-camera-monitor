@@ -55,4 +55,4 @@ build/
 dlib_models/
 .vscode/
 *.log
-vcpkg_installed_*/
+vcpkg_installed*/

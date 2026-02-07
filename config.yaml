@@ -1,11 +1,12 @@
 camera:
   fps: 30.0
+  acquisition_fps: 10.0
   # frame_roi limits where we look for faces (x, y, width, height)
   # Set to [0, 0, 0, 0] to use the full frame
   frame_roi: [0, 0, 0, 0]
 
 analysis:
-  window_size: 256
+  window_duration_seconds: 8.5
   min_bpm: 45.0
   max_bpm: 180.0
 

@@ -71,4 +71,8 @@ private:
     HINSTANCE m_hInstance;
     AppConfig m_cfg;
     const int HOTKEY_ID = 101; // Unique ID for this app's hotkey
+    int m_window_w{0};
+    int m_window_h{0};
+    int m_frame_w{0};
+    int m_frame_h{0};
 };

@@ -4,6 +4,57 @@ project(HeartbeatMonitor LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- 0. Toolchain sanity (Windows) ---
+if(WIN32 AND NOT MSVC)
+    message(FATAL_ERROR "This project requires the MSVC toolchain on Windows (vcpkg binaries are MSVC). Configure CLion to use the Visual Studio toolchain.")
+endif()
+
+# If no prefix path is provided (common in CLion), fall back to the repo-local vcpkg install.
+if(WIN32 AND NOT CMAKE_PREFIX_PATH)
+    set(_vcpkg_debug "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_debug/x64-windows")
+    set(_vcpkg_release "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_release/x64-windows")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND EXISTS "${_vcpkg_debug}")
+        list(APPEND CMAKE_PREFIX_PATH "${_vcpkg_debug}")
+    elseif(EXISTS "${_vcpkg_release}")
+        list(APPEND CMAKE_PREFIX_PATH "${_vcpkg_release}")
+    elseif(EXISTS "${_vcpkg_debug}")
+        list(APPEND CMAKE_PREFIX_PATH "${_vcpkg_debug}")
+    endif()
+endif()
+
+# Help FindLAPACK/FindBLAS on Windows when using repo-local vcpkg.
+if(WIN32)
+    set(_openblas_debug "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_debug/x64-windows/lib/openblas.lib")
+    set(_openblas_release "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_release/x64-windows/lib/openblas.lib")
+    if(NOT DEFINED BLA_VENDOR)
+        set(BLA_VENDOR "OpenBLAS" CACHE STRING "" FORCE)
+    endif()
+    if((NOT BLAS_LIBRARIES OR BLAS_LIBRARIES STREQUAL "BLAS_LIBRARIES-NOTFOUND"))
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND EXISTS "${_openblas_debug}")
+            set(BLAS_LIBRARIES "${_openblas_debug}" CACHE FILEPATH "" FORCE)
+        elseif(EXISTS "${_openblas_release}")
+            set(BLAS_LIBRARIES "${_openblas_release}" CACHE FILEPATH "" FORCE)
+        elseif(EXISTS "${_openblas_debug}")
+            set(BLAS_LIBRARIES "${_openblas_debug}" CACHE FILEPATH "" FORCE)
+        endif()
+    endif()
+    if((NOT LAPACK_LIBRARIES OR LAPACK_LIBRARIES STREQUAL "LAPACK_LIBRARIES-NOTFOUND"))
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND EXISTS "${_openblas_debug}")
+            set(LAPACK_LIBRARIES "${_openblas_debug}" CACHE FILEPATH "" FORCE)
+        elseif(EXISTS "${_openblas_release}")
+            set(LAPACK_LIBRARIES "${_openblas_release}" CACHE FILEPATH "" FORCE)
+        elseif(EXISTS "${_openblas_debug}")
+            set(LAPACK_LIBRARIES "${_openblas_debug}" CACHE FILEPATH "" FORCE)
+        endif()
+    endif()
+    if(BLAS_LIBRARIES)
+        set(BLAS_FOUND TRUE CACHE BOOL "" FORCE)
+    endif()
+    if(LAPACK_LIBRARIES)
+        set(LAPACK_FOUND TRUE CACHE BOOL "" FORCE)
+    endif()
+endif()
+
 # --- 1. DLib: Find via vcpkg (Cross-Platform) ---
 find_package(dlib CONFIG REQUIRED)
 message(STATUS "Found DLib: ${DLib_VERSION}")
@@ -22,8 +73,8 @@ message(STATUS "Found spdlog")
 
 # --- 3. Model Download & Extraction (Universal) ---
 set(MODEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/dlib_models")
-set(MODEL_FILE "${MODEL_DIR}/shape_predictor_68_face_landmarks_GTX.dat")
-set(MODEL_URL "http://dlib.net/files/shape_predictor_68_face_landmarks_GTX.dat.bz2")
+set(MODEL_FILE "${MODEL_DIR}/shape_predictor_68_face_landmarks.dat")
+set(MODEL_URL "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2")
 
 if(NOT EXISTS "${MODEL_FILE}")
     file(MAKE_DIRECTORY "${MODEL_DIR}")
@@ -56,8 +107,10 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     dlib::dlib
     yaml-cpp::yaml-cpp
     spdlog::spdlog
-    gdi32 user32 # For Win32 HUD
 )
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE gdi32 user32) # For Win32 HUD
+endif()
 file(TO_NATIVE_PATH "${MODEL_FILE}" NATIVE_PATH)
 string(REPLACE "\\" "\\\\" ESCAPED_PATH "${NATIVE_PATH}")
 target_compile_definitions(${PROJECT_NAME} PRIVATE MODEL_PATH="${ESCAPED_PATH}")
@@ -79,12 +132,15 @@ else()
 endif()
 
 # Copy DLLs from vcpkg bin directory
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_debug/x64-windows/bin"
-        "${OUTPUT_DIR}"
-    COMMENT "Copying vcpkg DLLs to output directory"
-)
+if(WIN32)
+    set(_vcpkg_bin_dir "$<IF:$<CONFIG:Debug>,${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_debug/x64-windows/bin,${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed_release/x64-windows/bin>")
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${_vcpkg_bin_dir}"
+            "${OUTPUT_DIR}"
+        COMMENT "Copying vcpkg DLLs to output directory"
+    )
+endif()
 
 # Copy config.yml to output directory
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

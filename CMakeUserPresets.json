@@ -2,6 +2,11 @@
   "version": 6,
   "configurePresets": [
     {
+      "name": "release",
+      "inherits": "release",
+      "hidden": false
+    },
+    {
       "name": "default",
       "inherits": "default",
       "hidden": false

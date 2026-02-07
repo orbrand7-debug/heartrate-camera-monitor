@@ -9,6 +9,8 @@
 #include <format>
 #include <vector>
 #include <sstream>
+#include <cmath>
+#include <algorithm>
 
 struct GDIObjectDeleter {
     void operator()(HGDIOBJ obj) const { if (obj) DeleteObject(obj); }
@@ -48,6 +50,8 @@ Overlay::Overlay(const AppConfig& c)
     if (!m_hwnd) {
         throw std::runtime_error("Failed to create HUD window.");
     }
+    m_window_w = m_cfg.hud.width;
+    m_window_h = m_cfg.hud.height;
 
     // Configure transparency: Black pixels are invisible, global alpha controls opacity
     SetLayeredWindowAttributes(m_hwnd, RGB(0, 0, 0), m_cfg.hud.alpha, LWA_COLORKEY | LWA_ALPHA);
@@ -88,6 +92,22 @@ void Overlay::update_frame(const cv::Mat& frame) {
         std::lock_guard<std::mutex> lock(m_mtx);
         // Copy the frame to our internal buffer for the UI thread to use
         frame.copyTo(m_frame);
+        m_frame_w = frame.cols;
+        m_frame_h = frame.rows;
+    }
+    if (m_hwnd && m_frame_w > 0 && m_frame_h > 0) {
+        const int max_w = m_cfg.hud.width;
+        const int max_h = m_cfg.hud.height;
+        const double scale = std::min(static_cast<double>(max_w) / m_frame_w,
+                                      static_cast<double>(max_h) / m_frame_h);
+        const int new_w = std::max(1, static_cast<int>(std::lround(m_frame_w * scale)));
+        const int new_h = std::max(1, static_cast<int>(std::lround(m_frame_h * scale)));
+        if (new_w != m_window_w || new_h != m_window_h) {
+            m_window_w = new_w;
+            m_window_h = new_h;
+            SetWindowPos(m_hwnd, NULL, 0, 0, m_window_w, m_window_h,
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
     }
     if (m_hwnd) InvalidateRect(m_hwnd, NULL, FALSE);
 }

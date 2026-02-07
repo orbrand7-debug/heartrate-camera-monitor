@@ -1,6 +1,7 @@
 #include "Config.hpp"
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
+#include <algorithm>
 
 std::expected<AppConfig, std::string> AppConfig::load(const std::string& path) {
     if (!std::filesystem::exists(path)) {
@@ -10,10 +11,19 @@ std::expected<AppConfig, std::string> AppConfig::load(const std::string& path) {
         YAML::Node node = YAML::LoadFile(path);
         AppConfig c;
         c.camera.fps = node["camera"]["fps"].as<double>(30.0);
+        c.camera.acquisition_fps = node["camera"]["acquisition_fps"].as<double>(10.0);
+        c.camera.acquisition_fps = std::clamp(c.camera.acquisition_fps, 10.0, 60.0);
         auto roi = node["camera"]["frame_roi"].as<std::vector<int>>();
         c.camera.frame_roi = cv::Rect(roi[0], roi[1], roi[2], roi[3]);
 
-        c.analysis.window_size = node["analysis"]["window_size"].as<int>(256);
+        if (node["analysis"] && node["analysis"]["window_duration_seconds"]) {
+            c.analysis.window_duration_seconds = node["analysis"]["window_duration_seconds"].as<double>(8.5);
+        } else if (node["analysis"] && node["analysis"]["window_size"]) {
+            const int legacy_ws = node["analysis"]["window_size"].as<int>(256);
+            c.analysis.window_duration_seconds = legacy_ws / std::max(1.0, c.camera.acquisition_fps);
+        } else {
+            c.analysis.window_duration_seconds = 8.5;
+        }
         c.analysis.min_bpm = node["analysis"]["min_bpm"].as<double>(45.0);
         c.analysis.max_bpm = node["analysis"]["max_bpm"].as<double>(180.0);
 

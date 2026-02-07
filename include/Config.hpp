@@ -11,11 +11,12 @@
 struct AppConfig {
     struct {
         double fps;
+        double acquisition_fps;
         cv::Rect frame_roi;
     } camera;
 
     struct {
-        int window_size;
+        double window_duration_seconds;
         double min_bpm;
         double max_bpm;
     } analysis;
